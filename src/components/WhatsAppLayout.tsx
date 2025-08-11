@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,12 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMobile } from '@/hooks/use-mobile';
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
 
 interface Contact {
   id: string;
@@ -41,54 +48,22 @@ interface Message {
 const mockContacts: Contact[] = [
   {
     id: '1',
-    name: 'John Doe',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+    name: 'Akshay Kumar',
+    avatar:
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
     lastMessage: 'Hey, how are you doing?',
     timestamp: '10:30 AM',
     unreadCount: 2,
-    isOnline: true
+    isOnline: true,
   },
-  {
-    id: '2',
-    name: 'Jane Smith',
-    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-    lastMessage: 'The meeting is scheduled for tomorrow',
-    timestamp: '9:15 AM',
-    unreadCount: 0,
-    isOnline: false,
-    lastSeen: '2 hours ago'
-  },
-  {
-    id: '3',
-    name: 'Mike Johnson',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-    lastMessage: 'Thanks for the help!',
-    timestamp: 'Yesterday',
-    unreadCount: 1,
-    isOnline: true
-  },
-  {
-    id: '4',
-    name: 'Sarah Wilson',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face',
-    lastMessage: 'Can you send me the files?',
-    timestamp: 'Yesterday',
-    unreadCount: 0,
-    isOnline: false,
-    lastSeen: '5 hours ago'
-  },
-  {
-    id: '5',
-    name: 'David Brown',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face',
-    lastMessage: 'Great work on the project!',
-    timestamp: '2 days ago',
-    unreadCount: 0,
-    isOnline: true
-  }
 ];
 
-export const WhatsAppLayout: React.FC = () => {
+interface WhatsAppLayoutProps {
+  currentUser: User;
+  onLogout: () => void;
+}
+
+export const WhatsAppLayout: React.FC<WhatsAppLayoutProps> = ({ currentUser, onLogout }) => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -96,22 +71,78 @@ export const WhatsAppLayout: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const isMobile = useMobile();
+  const [socket, setSocket] = useState<Socket | null>(null);
 
-  // Filter contacts based on search query
-  const filteredContacts = mockContacts.filter(contact =>
+  // Filter contacts based on search query and use updated contact if selected
+  const filteredContacts = mockContacts.map(contact => 
+    contact.id === selectedContact?.id ? selectedContact : contact
+  ).filter(contact =>
     contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     contact.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Connect Socket.IO
+  useEffect(() => {
+    const socketUrl = (import.meta as any).env.VITE_SOCKET_URL || 'http://localhost:4000';
+    const s = io(socketUrl, { transports: ['websocket'] });
+    setSocket(s);
+    return () => {
+      s.disconnect();
+    };
+  }, []);
+
+  // Join room when selecting contact
+  useEffect(() => {
+    if (socket && selectedContact) {
+      socket.emit('join', selectedContact.id);
+    }
+  }, [socket, selectedContact]);
+
+  // Receive realtime events
+  useEffect(() => {
+    if (!socket) return;
+    const onMessage = (message: Message) => {
+      // Messages received from others should render as received
+      const normalized = { ...message, isSent: false } as Message;
+      setMessages(prev => [...prev, normalized]);
+    };
+    const onTyping = ({ typing }: { typing: boolean }) => {
+      setIsTyping(typing);
+    };
+    socket.on('message', onMessage);
+    socket.on('typing', onTyping);
+    return () => {
+      socket.off('message', onMessage);
+      socket.off('typing', onTyping);
+    };
+  }, [socket]);
+
   const handleSendMessage = () => {
     if (newMessage.trim() && selectedContact) {
+      const now = new Date();
       const message: Message = {
         id: Date.now().toString(),
         text: newMessage,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: now.toLocaleString([], { 
+          month: 'short', 
+          day: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
         isSent: true
       };
       setMessages([...messages, message]);
+      
+      // Update the contact's last message
+      const updatedContact = { ...selectedContact };
+      updatedContact.lastMessage = newMessage;
+      updatedContact.timestamp = message.timestamp;
+      setSelectedContact(updatedContact);
+      
+      // Emit to server for realtime broadcast
+      if (socket) {
+        socket.emit('message', { roomId: selectedContact.id, message });
+      }
       setNewMessage('');
       setIsTyping(false);
     }
@@ -126,7 +157,11 @@ export const WhatsAppLayout: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
-    setIsTyping(e.target.value.length > 0);
+    const typing = e.target.value.length > 0;
+    setIsTyping(typing);
+    if (socket && selectedContact) {
+      socket.emit('typing', { roomId: selectedContact.id, typing });
+    }
   };
 
   const handleContactClick = (contact: Contact) => {
@@ -139,7 +174,10 @@ export const WhatsAppLayout: React.FC = () => {
   };
 
   const handleMenuClick = () => {
-    alert('Menu clicked! This would open the main menu.');
+    // Show logout option in menu
+    if (confirm('Do you want to logout?')) {
+      onLogout();
+    }
   };
 
   const handleStatusClick = () => {
@@ -194,8 +232,8 @@ export const WhatsAppLayout: React.FC = () => {
               <AvatarFallback>Me</AvatarFallback>
             </Avatar>
             <div>
-              <div className="font-semibold">My Profile</div>
-              <div className="text-xs opacity-80">Online</div>
+              <div className="font-semibold">{currentUser.name}</div>
+              <div className="text-xs opacity-80">{currentUser.email}</div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
