@@ -57,6 +57,33 @@ A responsive web application UI inspired by WhatsApp Web, built with React, Type
 
 3. Open your browser and navigate to `http://localhost:5173`
 
+## Email OTP setup
+
+To enable email OTP, create a `.env` file in the project root with the following variables:
+
+```
+SMTP_HOST=your_smtp_host
+SMTP_PORT=587
+SMTP_USER=your_username
+SMTP_PASS=your_password
+SMTP_FROM="Your App <no-reply@yourdomain.com>"
+
+# optional for testing the SMTP script
+TEST_EMAIL_TO=your_email@example.com
+```
+
+Then start the Socket/HTTP server that powers auth and sockets:
+
+```
+npm run socket:server
+```
+
+You can verify SMTP works by sending a test email:
+
+```
+npm run test:smtp
+```
+
 ## Project Structure
 
 ```

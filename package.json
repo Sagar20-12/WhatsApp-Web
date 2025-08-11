@@ -12,7 +12,8 @@
     "process-webhooks": "node scripts/process-webhooks.js",
     "process-webhooks:enhanced": "node scripts/enhanced-webhook-processor.js",
     "test-webhooks": "node scripts/test-processor.js",
-    "socket:server": "node server/index.js"
+    "socket:server": "node server/index.js",
+    "test:smtp": "node scripts/test-smtp.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -57,6 +58,7 @@
     "express": "^5.1.0",
     "input-otp": "^1.4.2",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.14",
     "lucide-react": "^0.462.0",
     "mongodb": "^6.18.0",
     "next-themes": "^0.3.0",
