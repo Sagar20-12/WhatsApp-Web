@@ -88,49 +88,23 @@ const mockContacts: Contact[] = [
   }
 ];
 
-const mockMessages: Message[] = [
-  {
-    id: '1',
-    text: 'Hey, how are you doing?',
-    timestamp: '10:30 AM',
-    isSent: false
-  },
-  {
-    id: '2',
-    text: 'I\'m doing great! How about you?',
-    timestamp: '10:32 AM',
-    isSent: true
-  },
-  {
-    id: '3',
-    text: 'Pretty good! Just working on some projects.',
-    timestamp: '10:33 AM',
-    isSent: false
-  },
-  {
-    id: '4',
-    text: 'That sounds interesting! What kind of projects?',
-    timestamp: '10:35 AM',
-    isSent: true
-  },
-  {
-    id: '5',
-    text: 'Mostly web development stuff. Building a new app.',
-    timestamp: '10:36 AM',
-    isSent: false
-  }
-];
-
 export const WhatsAppLayout: React.FC = () => {
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(mockContacts[0]);
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [showSidebar, setShowSidebar] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const isMobile = useMobile();
 
+  // Filter contacts based on search query
+  const filteredContacts = mockContacts.filter(contact =>
+    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    contact.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const handleSendMessage = () => {
-    if (newMessage.trim()) {
+    if (newMessage.trim() && selectedContact) {
       const message: Message = {
         id: Date.now().toString(),
         text: newMessage,
@@ -139,6 +113,7 @@ export const WhatsAppLayout: React.FC = () => {
       };
       setMessages([...messages, message]);
       setNewMessage('');
+      setIsTyping(false);
     }
   };
 
@@ -154,6 +129,55 @@ export const WhatsAppLayout: React.FC = () => {
     setIsTyping(e.target.value.length > 0);
   };
 
+  const handleContactClick = (contact: Contact) => {
+    setSelectedContact(contact);
+    // Clear unread count when contact is selected
+    contact.unreadCount = 0;
+    if (isMobile) {
+      setShowSidebar(false);
+    }
+  };
+
+  const handleMenuClick = () => {
+    alert('Menu clicked! This would open the main menu.');
+  };
+
+  const handleStatusClick = () => {
+    alert('Status clicked! This would open status updates.');
+  };
+
+  const handleNewChatClick = () => {
+    alert('New chat clicked! This would open new chat options.');
+  };
+
+  const handleSearchClick = () => {
+    alert('Search clicked! This would open message search.');
+  };
+
+  const handleAttachmentClick = () => {
+    alert('Attachment clicked! This would open file picker.');
+  };
+
+  const handleEmojiClick = () => {
+    alert('Emoji clicked! This would open emoji picker.');
+  };
+
+  const handleVoiceClick = () => {
+    alert('Voice message clicked! This would start voice recording.');
+  };
+
+  const handleCallClick = () => {
+    alert('Call clicked! This would initiate a voice call.');
+  };
+
+  const handleVideoCallClick = () => {
+    alert('Video call clicked! This would initiate a video call.');
+  };
+
+  const handleMoreOptionsClick = () => {
+    alert('More options clicked! This would open chat options menu.');
+  };
+
   return (
     <div className="h-screen bg-gray-100 flex">
       {/* Sidebar */}
@@ -165,7 +189,7 @@ export const WhatsAppLayout: React.FC = () => {
         {/* Header */}
         <div className="bg-[#075E54] text-white p-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Avatar className="w-10 h-10">
+            <Avatar className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity">
               <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face" />
               <AvatarFallback>Me</AvatarFallback>
             </Avatar>
@@ -175,10 +199,20 @@ export const WhatsAppLayout: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-white hover:bg-white/20"
+              onClick={handleStatusClick}
+            >
               <MessageCircle className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-white hover:bg-white/20"
+              onClick={handleMenuClick}
+            >
               <MoreVertical className="w-5 h-5" />
             </Button>
           </div>
@@ -191,26 +225,33 @@ export const WhatsAppLayout: React.FC = () => {
             <Input
               placeholder="Search or start new chat"
               className="pl-10 bg-white border-gray-300 rounded-lg"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                onClick={() => setSearchQuery('')}
+              >
+                ×
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Contacts List */}
         <ScrollArea className="flex-1 whatsapp-scrollbar">
           <div className="space-y-1">
-            {mockContacts.map((contact) => (
+            {filteredContacts.map((contact) => (
               <div
                 key={contact.id}
-                                 className={cn(
-                   "flex items-center space-x-3 p-3 cursor-pointer hover:bg-gray-50 transition-colors duration-200",
-                   selectedContact?.id === contact.id && "bg-gray-100"
-                 )}
-                onClick={() => {
-                  setSelectedContact(contact);
-                  if (isMobile) {
-                    setShowSidebar(false);
-                  }
-                }}
+                className={cn(
+                  "flex items-center space-x-3 p-3 cursor-pointer hover:bg-gray-50 transition-colors duration-200",
+                  selectedContact?.id === contact.id && "bg-gray-100"
+                )}
+                onClick={() => handleContactClick(contact)}
               >
                 <div className="relative">
                   <Avatar className="w-12 h-12">
@@ -250,18 +291,18 @@ export const WhatsAppLayout: React.FC = () => {
           <>
             {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-                             <div className="flex items-center space-x-3">
-                 {isMobile && (
-                   <Button
-                     variant="ghost"
-                     size="sm"
-                     onClick={() => setShowSidebar(true)}
-                     className="md:hidden"
-                   >
-                     <ArrowLeft className="w-5 h-5" />
-                   </Button>
-                 )}
-                <Avatar className="w-10 h-10">
+              <div className="flex items-center space-x-3">
+                {isMobile && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowSidebar(true)}
+                    className="md:hidden"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                )}
+                <Avatar className="w-10 h-10 cursor-pointer hover:opacity-80 transition-opacity">
                   <AvatarImage src={selectedContact.avatar} />
                   <AvatarFallback>{selectedContact.name.charAt(0)}</AvatarFallback>
                 </Avatar>
@@ -273,10 +314,32 @@ export const WhatsAppLayout: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleSearchClick}
+                >
                   <Search className="w-5 h-5" />
                 </Button>
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleCallClick}
+                >
+                  <Phone className="w-5 h-5" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleVideoCallClick}
+                >
+                  <Video className="w-5 h-5" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleMoreOptionsClick}
+                >
                   <MoreVertical className="w-5 h-5" />
                 </Button>
               </div>
@@ -286,32 +349,41 @@ export const WhatsAppLayout: React.FC = () => {
             <div className="flex-1 bg-[#ECE5DD] whatsapp-bg-pattern">
               <ScrollArea className="h-full p-4 whatsapp-scrollbar">
                 <div className="space-y-4">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "flex",
-                        message.isSent ? "justify-end" : "justify-start"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "whatsapp-message-bubble px-4 py-2 rounded-lg shadow-sm",
-                          message.isSent
-                            ? "bg-[#25D366] text-white sent"
-                            : "bg-white text-gray-900 received"
-                        )}
-                      >
-                        <p className="text-sm leading-relaxed">{message.text}</p>
-                        <p className={cn(
-                          "text-xs mt-1 opacity-70",
-                          message.isSent ? "text-green-100" : "text-gray-500"
-                        )}>
-                          {message.timestamp}
-                        </p>
+                  {messages.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center text-gray-500">
+                        <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                        <p>No messages yet. Start a conversation!</p>
                       </div>
                     </div>
-                  ))}
+                  ) : (
+                    messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={cn(
+                          "flex",
+                          message.isSent ? "justify-end" : "justify-start"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "whatsapp-message-bubble px-4 py-2 rounded-lg shadow-sm",
+                            message.isSent
+                              ? "bg-[#25D366] text-white sent"
+                              : "bg-white text-gray-900 received"
+                          )}
+                        >
+                          <p className="text-sm leading-relaxed">{message.text}</p>
+                          <p className={cn(
+                            "text-xs mt-1 opacity-70",
+                            message.isSent ? "text-green-100" : "text-gray-500"
+                          )}>
+                            {message.timestamp}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                   {isTyping && (
                     <div className="flex justify-start">
                       <div className="whatsapp-message-bubble px-4 py-2 rounded-lg shadow-sm bg-white text-gray-900 received">
@@ -330,26 +402,34 @@ export const WhatsAppLayout: React.FC = () => {
             {/* Message Input */}
             <div className="bg-white border-t border-gray-200 p-4">
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleEmojiClick}
+                >
                   <Smile className="w-5 h-5" />
                 </Button>
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleAttachmentClick}
+                >
                   <Paperclip className="w-5 h-5" />
                 </Button>
-                                  <div className="flex-1 relative">
-                    <Input
-                      value={newMessage}
-                      onChange={handleInputChange}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Type a message"
-                      className="rounded-full pr-12"
-                    />
-                  </div>
+                <div className="flex-1 relative">
+                  <Input
+                    value={newMessage}
+                    onChange={handleInputChange}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Type a message"
+                    className="rounded-full pr-12"
+                  />
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
+                  onClick={newMessage.trim() ? handleSendMessage : handleVoiceClick}
+                  disabled={!newMessage.trim() && !selectedContact}
                 >
                   {newMessage.trim() ? (
                     <Send className="w-5 h-5" />
@@ -367,7 +447,13 @@ export const WhatsAppLayout: React.FC = () => {
                 <MessageCircle className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-xl font-semibold text-gray-900 mb-2">Welcome to WhatsApp Web</h2>
-              <p className="text-gray-600">Select a chat to start messaging</p>
+              <p className="text-gray-600 mb-4">Select a chat to start messaging</p>
+              <Button 
+                onClick={handleNewChatClick}
+                className="bg-[#25D366] hover:bg-[#128C7E] text-white"
+              >
+                Start New Chat
+              </Button>
             </div>
           </div>
         )}
