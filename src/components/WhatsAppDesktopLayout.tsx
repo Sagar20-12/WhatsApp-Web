@@ -27,7 +27,9 @@ import {
   Lock,
   Trash2,
   Copy,
-  Forward
+  Forward,
+  ArrowLeft,
+  Menu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from './ThemeProvider';
@@ -131,6 +133,8 @@ export const WhatsAppDesktopLayout: React.FC<WhatsAppDesktopLayoutProps> = ({ cu
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [showMessageMenu, setShowMessageMenu] = useState(false);
   const [messageMenuPosition, setMessageMenuPosition] = useState({ x: 0, y: 0 });
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Filter chats based on search and active filter
   const filteredChats = chats.filter(chat => {
@@ -184,13 +188,7 @@ export const WhatsAppDesktopLayout: React.FC<WhatsAppDesktopLayoutProps> = ({ cu
     }
   };
 
-  const handleContactClick = (contact: Contact) => {
-    setSelectedContact(contact);
-    const updatedChats = chats.map(chat => 
-      chat.id === contact.id ? { ...chat, unreadCount: 0 } : chat
-    );
-    setChats(updatedChats);
-  };
+
 
   const handleAddNewChat = (contact: Contact) => {
     const existingChat = chats.find(chat => chat.id === contact.id);
@@ -259,6 +257,38 @@ export const WhatsAppDesktopLayout: React.FC<WhatsAppDesktopLayoutProps> = ({ cu
     }
   }, [showMessageMenu]);
 
+  // Handle responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      if (width >= 768) {
+        setShowSidebar(true);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleContactClick = (contact: Contact) => {
+    setSelectedContact(contact);
+    const updatedChats = chats.map(chat => 
+      chat.id === contact.id ? { ...chat, unreadCount: 0 } : chat
+    );
+    setChats(updatedChats);
+    // Always hide sidebar on mobile when a contact is selected
+    if (isMobile) {
+      setShowSidebar(false);
+    }
+  };
+
+  const handleBackToChats = () => {
+    setShowSidebar(true);
+    setSelectedContact(null);
+  };
+
   return (
     <div className={cn(
       "h-screen flex",
@@ -267,7 +297,8 @@ export const WhatsAppDesktopLayout: React.FC<WhatsAppDesktopLayoutProps> = ({ cu
       {/* Left Navigation Bar */}
       <div className={cn(
         "w-20 flex flex-col items-center py-4 border-r",
-        theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
+        isMobile && "hidden"
       )}>
         {/* Profile with unread indicator */}
         <div className="relative mb-6">
@@ -325,30 +356,44 @@ export const WhatsAppDesktopLayout: React.FC<WhatsAppDesktopLayoutProps> = ({ cu
 
       {/* Chat List Panel */}
       <div className={cn(
-        "w-96 flex flex-col border-r",
-        theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        "flex flex-col border-r",
+        theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
+        isMobile ? "w-full" : "w-96",
+        isMobile && !showSidebar && "hidden"
       )}>
         {/* Header */}
         <div className={cn(
           "p-4 border-b",
           theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
         )}>
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold">WhatsApp</h1>
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="w-8 h-8 p-0"
-                onClick={() => setShowNewChatDialog(true)}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+                     <div className="flex items-center justify-between mb-4">
+             <div className="flex items-center space-x-3">
+               {isMobile && (
+                 <Button
+                   variant="ghost"
+                   size="sm"
+                   onClick={() => setShowSidebar(false)}
+                   className="md:hidden"
+                 >
+                   <Menu className="w-5 h-5" />
+                 </Button>
+               )}
+               <h1 className="text-xl font-semibold">WhatsApp</h1>
+             </div>
+             <div className="flex items-center space-x-2">
+               <Button 
+                 variant="ghost" 
+                 size="sm" 
+                 className="w-8 h-8 p-0"
+                 onClick={() => setShowNewChatDialog(true)}
+               >
+                 <Plus className="w-4 h-4" />
+               </Button>
+               <Button variant="ghost" size="sm" className="w-8 h-8 p-0">
+                 <MoreVertical className="w-4 h-4" />
+               </Button>
+             </div>
+           </div>
 
           {/* Search Bar */}
           <div className="relative">
@@ -365,85 +410,98 @@ export const WhatsAppDesktopLayout: React.FC<WhatsAppDesktopLayoutProps> = ({ cu
           </div>
         </div>
 
-        {/* Filter Buttons */}
-        <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex space-x-2">
-            {(['all', 'unread', 'favourites', 'groups'] as const).map((filter) => (
-              <Button
-                key={filter}
-                variant={activeFilter === filter ? "default" : "ghost"}
-                size="sm"
-                className={cn(
-                  "capitalize",
-                  activeFilter === filter 
-                    ? "bg-green-500 hover:bg-green-600 text-white" 
-                    : theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                )}
-                onClick={() => setActiveFilter(filter)}
-              >
-                {filter}
-              </Button>
-            ))}
-          </div>
-        </div>
+                 {/* Filter Buttons */}
+         <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+           <div className="flex space-x-1 overflow-x-auto">
+             {(['all', 'unread', 'favourites', 'groups'] as const).map((filter) => (
+               <Button
+                 key={filter}
+                 variant={activeFilter === filter ? "default" : "ghost"}
+                 size="sm"
+                 className={cn(
+                   "capitalize whitespace-nowrap text-xs",
+                   activeFilter === filter 
+                     ? "bg-green-500 hover:bg-green-600 text-white" 
+                     : theme === 'dark' ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                 )}
+                 onClick={() => setActiveFilter(filter)}
+               >
+                 {filter}
+               </Button>
+             ))}
+           </div>
+         </div>
 
         {/* Chat List */}
         <ScrollArea className="flex-1">
           <div className="space-y-1">
-            {filteredChats.map((chat) => (
-              <div
-                key={chat.id}
-                className={cn(
-                  "flex items-center space-x-3 p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200",
-                  selectedContact?.id === chat.id && (theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100')
-                )}
-                onClick={() => handleContactClick(chat)}
-              >
-                <Avatar className="w-12 h-12">
-                  <AvatarImage src={chat.avatar} />
-                  <AvatarFallback>{chat.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold truncate">{chat.name}</h3>
-                    <span className="text-xs text-gray-500">{chat.timestamp}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{chat.lastMessage}</p>
-                    {chat.unreadCount > 0 && (
-                      <Badge className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                        {chat.unreadCount}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+                         {filteredChats.map((chat) => (
+               <div
+                 key={chat.id}
+                 className={cn(
+                   "flex items-center space-x-3 p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200",
+                   selectedContact?.id === chat.id && (theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100')
+                 )}
+                 onClick={() => handleContactClick(chat)}
+               >
+                 <Avatar className="w-10 h-10 md:w-12 md:h-12">
+                   <AvatarImage src={chat.avatar} />
+                   <AvatarFallback>{chat.name.charAt(0)}</AvatarFallback>
+                 </Avatar>
+                 <div className="flex-1 min-w-0">
+                   <div className="flex items-center justify-between">
+                     <h3 className="font-semibold truncate text-sm md:text-base">{chat.name}</h3>
+                     <span className="text-xs text-gray-500">{chat.timestamp}</span>
+                   </div>
+                   <div className="flex items-center justify-between">
+                     <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">{chat.lastMessage}</p>
+                     {chat.unreadCount > 0 && (
+                       <Badge className="bg-green-500 text-white text-xs px-1.5 py-0.5 md:px-2 md:py-1 rounded-full">
+                         {chat.unreadCount}
+                       </Badge>
+                     )}
+                   </div>
+                 </div>
+               </div>
+             ))}
           </div>
         </ScrollArea>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+             {/* Main Chat Area */}
+       <div className={cn(
+         "flex-1 flex flex-col",
+         isMobile && (!selectedContact || showSidebar) && "hidden"
+       )}>
         {selectedContact ? (
           <>
-            {/* Chat Header */}
-            <div className={cn(
-              "p-4 border-b flex items-center justify-between",
-              theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-            )}>
-              <div className="flex items-center space-x-3">
-                <Avatar className="w-10 h-10">
-                  <AvatarImage src={selectedContact.avatar} />
-                  <AvatarFallback>{selectedContact.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h2 className="font-semibold">{selectedContact.name}</h2>
-                  <p className="text-sm text-gray-500">
-                    {selectedContact.isOnline ? 'online' : `last seen ${selectedContact.lastSeen || 'recently'}`}
-                  </p>
-                </div>
-              </div>
+                         {/* Chat Header */}
+             <div className={cn(
+               "p-4 border-b flex items-center justify-between",
+               theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+             )}>
+               <div className="flex items-center space-x-3">
+                                   {isMobile && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleBackToChats}
+                      className="md:hidden"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                  )}
+                 <Avatar className="w-10 h-10">
+                   <AvatarImage src={selectedContact.avatar} />
+                   <AvatarFallback>{selectedContact.name.charAt(0)}</AvatarFallback>
+                 </Avatar>
+                 <div>
+                   <h2 className="font-semibold">{selectedContact.name}</h2>
+                   <p className="text-sm text-gray-500">
+                     {selectedContact.isOnline ? 'online' : `last seen ${selectedContact.lastSeen || 'recently'}`}
+                   </p>
+                 </div>
+               </div>
               <div className="flex items-center space-x-2">
                 <Button variant="ghost" size="sm">
                   <Search className="w-5 h-5" />
@@ -460,91 +518,92 @@ export const WhatsAppDesktopLayout: React.FC<WhatsAppDesktopLayoutProps> = ({ cu
               </div>
             </div>
 
-            {/* Messages Area */}
-            <div className={cn(
-              "flex-1",
-              theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
-            )}>
-              <ScrollArea className="h-full p-4">
-                <div className="space-y-4">
-                  {messages.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center text-gray-500">
-                        <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p>No messages yet. Start a conversation!</p>
-                      </div>
-                    </div>
-                  ) : (
-                                         messages.map((message) => (
-                       <div
-                         key={message.id}
-                         className={cn(
-                           "flex",
-                           message.isSent ? "justify-end" : "justify-start"
-                         )}
-                       >
-                         <div
-                           className={cn(
-                             "px-4 py-2 rounded-lg shadow-sm max-w-xs cursor-pointer hover:opacity-90 transition-opacity",
-                             message.isSent
-                               ? "bg-green-500 text-white"
-                               : theme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'
-                           )}
-                           onContextMenu={(e) => handleMessageRightClick(e, message)}
-                         >
-                           <p className="text-sm leading-relaxed">{message.text}</p>
-                           <p className={cn(
-                             "text-xs mt-1 opacity-70",
-                             message.isSent ? "text-green-100" : "text-gray-500"
-                           )}>
-                             {message.timestamp}
-                           </p>
-                         </div>
+                         {/* Messages Area */}
+             <div className={cn(
+               "flex-1",
+               theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
+             )}>
+               <ScrollArea className="h-full p-2 md:p-4">
+                 <div className="space-y-3 md:space-y-4">
+                   {messages.length === 0 ? (
+                     <div className="flex items-center justify-center h-full">
+                       <div className="text-center text-gray-500">
+                         <MessageCircle className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-2 opacity-50" />
+                         <p className="text-sm md:text-base">No messages yet. Start a conversation!</p>
                        </div>
-                     ))
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
+                     </div>
+                   ) : (
+                                          messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={cn(
+                            "flex",
+                            message.isSent ? "justify-end" : "justify-start"
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              "px-3 py-2 md:px-4 md:py-2 rounded-lg shadow-sm max-w-[75%] md:max-w-xs cursor-pointer hover:opacity-90 transition-opacity",
+                              message.isSent
+                                ? "bg-green-500 text-white"
+                                : theme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'
+                            )}
+                            onContextMenu={(e) => handleMessageRightClick(e, message)}
+                          >
+                            <p className="text-sm leading-relaxed">{message.text}</p>
+                            <p className={cn(
+                              "text-xs mt-1 opacity-70",
+                              message.isSent ? "text-green-100" : "text-gray-500"
+                            )}>
+                              {message.timestamp}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                   )}
+                 </div>
+               </ScrollArea>
+             </div>
 
-            {/* Message Input */}
-            <div className={cn(
-              "p-4 border-t",
-              theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-            )}>
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm">
-                  <Smile className="w-5 h-5" />
-                </Button>
-                <Button variant="ghost" size="sm">
-                  <Paperclip className="w-5 h-5" />
-                </Button>
-                <div className="flex-1 relative">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Type a message"
-                    className={cn(
-                      "rounded-full pr-12",
-                      theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-300'
-                    )}
-                  />
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={newMessage.trim() ? handleSendMessage : undefined}
-                  disabled={!newMessage.trim()}
-                >
-                  {newMessage.trim() ? (
-                    <Send className="w-5 h-5" />
-                  ) : (
-                    <Mic className="w-5 h-5" />
-                  )}
-                </Button>
-              </div>
-            </div>
+                         {/* Message Input */}
+             <div className={cn(
+               "p-2 md:p-4 border-t",
+               theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+             )}>
+               <div className="flex items-center space-x-1 md:space-x-2">
+                 <Button variant="ghost" size="sm" className="w-8 h-8 md:w-10 md:h-10 p-0">
+                   <Smile className="w-4 h-4 md:w-5 md:h-5" />
+                 </Button>
+                 <Button variant="ghost" size="sm" className="w-8 h-8 md:w-10 md:h-10 p-0">
+                   <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
+                 </Button>
+                 <div className="flex-1 relative">
+                   <Input
+                     value={newMessage}
+                     onChange={(e) => setNewMessage(e.target.value)}
+                     onKeyPress={handleKeyPress}
+                     placeholder="Type a message"
+                     className={cn(
+                       "rounded-full pr-10 md:pr-12 text-sm md:text-base",
+                       theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-300'
+                     )}
+                   />
+                 </div>
+                 <Button
+                   variant="ghost"
+                   size="sm"
+                   onClick={newMessage.trim() ? handleSendMessage : undefined}
+                   disabled={!newMessage.trim()}
+                   className="w-8 h-8 md:w-10 md:h-10 p-0"
+                 >
+                   {newMessage.trim() ? (
+                     <Send className="w-4 h-4 md:w-5 md:h-5" />
+                   ) : (
+                     <Mic className="w-4 h-4 md:w-5 md:h-5" />
+                   )}
+                 </Button>
+               </div>
+             </div>
           </>
         ) : (
           // Welcome Screen
@@ -552,37 +611,38 @@ export const WhatsAppDesktopLayout: React.FC<WhatsAppDesktopLayoutProps> = ({ cu
             "flex-1 flex items-center justify-center",
             theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
           )}>
-            <div className="text-center max-w-md">
-              <div className="w-32 h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center mx-auto mb-6">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-green-500 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <Video className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="text-2xl font-bold text-green-500 mb-2">WhatsApp</div>
-                </div>
-              </div>
-              <h2 className="text-2xl font-semibold mb-4">Download WhatsApp for Windows</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Make calls, share your screen and get a faster experience when you download the Windows app.
-              </p>
-              <Button className="bg-green-500 hover:bg-green-600 text-white mb-4">
-                <Download className="w-4 h-4 mr-2" />
-                Download
-              </Button>
-              <div className="flex items-center justify-center text-sm text-gray-500">
-                <Lock className="w-4 h-4 mr-2" />
-                Your personal messages are end-to-end encrypted
-              </div>
-            </div>
+                       <div className="text-center max-w-md px-4">
+             <div className="w-24 h-24 md:w-32 md:h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center mx-auto mb-4 md:mb-6">
+               <div className="text-center">
+                 <div className="w-12 h-12 md:w-16 md:h-16 bg-green-500 rounded-lg flex items-center justify-center mx-auto mb-2 md:mb-4">
+                   <Video className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                 </div>
+                 <div className="text-xl md:text-2xl font-bold text-green-500 mb-1 md:mb-2">WhatsApp</div>
+               </div>
+             </div>
+             <h2 className="text-xl md:text-2xl font-semibold mb-3 md:mb-4">Download WhatsApp for Windows</h2>
+             <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mb-4 md:mb-6">
+               Make calls, share your screen and get a faster experience when you download the Windows app.
+             </p>
+             <Button className="bg-green-500 hover:bg-green-600 text-white mb-3 md:mb-4">
+               <Download className="w-4 h-4 mr-2" />
+               Download
+             </Button>
+             <div className="flex items-center justify-center text-xs md:text-sm text-gray-500">
+               <Lock className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+               Your personal messages are end-to-end encrypted
+             </div>
+           </div>
           </div>
         )}
       </div>
 
-      {/* New Chat Dialog */}
-      <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
-        <DialogContent className={cn(
-          theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-        )}>
+             {/* New Chat Dialog */}
+       <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
+         <DialogContent className={cn(
+           "w-[90vw] max-w-md",
+           theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+         )}>
           <DialogHeader>
             <DialogTitle>New Chat</DialogTitle>
           </DialogHeader>
