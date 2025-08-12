@@ -1,0 +1,26 @@
+{
+  "name": "whatsapp-api-server",
+  "version": "1.0.0",
+  "description": "API server for WhatsApp webhook data",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "mongodb": "^6.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "whatsapp",
+    "api",
+    "mongodb",
+    "express"
+  ],
+  "author": "WhatsApp Web Clone",
+  "license": "MIT"
+}

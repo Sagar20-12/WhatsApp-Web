@@ -1,0 +1,24 @@
+{
+  "name": "whatsapp-payload-processor",
+  "version": "1.0.0",
+  "description": "Script to process WhatsApp webhook payloads and store in MongoDB",
+  "main": "process-whatsapp-payloads.js",
+  "scripts": {
+    "start": "node process-whatsapp-payloads.js",
+    "process": "node process-whatsapp-payloads.js",
+    "test": "node test-processor.js",
+    "test-db": "node test-mongodb-connection.js"
+  },
+  "dependencies": {
+    "mongodb": "^6.3.0"
+  },
+  "keywords": [
+    "whatsapp",
+    "webhook",
+    "mongodb",
+    "payload",
+    "processor"
+  ],
+  "author": "WhatsApp Web Clone",
+  "license": "MIT"
+}
